@@ -1,19 +1,255 @@
+* Accessing data;
+%let path = /home/u64095876/copd_data/input;
+libname fraudref "&path";
+options validvarname=v7;
+proc import datafile="&path/medicalProviderandReferraldata.csv"
+dbms=csv
+out=fraudref.prep_referral_analysis
+replace;
+guessingrows=max;
+run;
+
+* Exploring data;
+/* The first 2 logical blocks  */
+| trackingID | medicalProviderIdentifier | totaleligiblePerson | Older_Adult | NumberOfCOPD | State | med_services_Type | count_of_service | Service_Date_Detail | Is_Conducted_Spirometry | charged_for_Rehab_Exclspirometry | pulm_rehab_sessions | rescue_inhaler_rx_count | age_Mean   | service_date    |
+|------------|---------------------------|---------------------|-------------|--------------|-------|-------------------|------------------|---------------------|-------------------------|----------------------------------|---------------------|--------------------------|------------|-----------------|
+| 2          | 9269216714                |                     |             |              | VA    |                   |                  |                     |                         |                                  |                     |                          |            |                 |
+|            |                           |                     |             |              |       |                   |                  |                     |                         |                                  |                     |                          |            |                 |
+|            |                           | 4536                | 2087        | 216          |       | 87088             | 1105             | Lab_Test_Date        | False                   | False                            | 23                  | 3                        | 71.1556678 | 5/30/24 0:00    |
+|            |                           | 0                   | 0           | 0            |       | 71045             | 436              | Imaging_Date         |                         |                                  | 0                   | 0                        | 0          | 5/30/24 12:28   |
+|            |                           | 0                   | 0           | 0            |       | 99214             | 547              | Consult_Date         |                         |                                  | 0                   | 0                        | 0          | 6/14/24 23:57   |
+|            |                           | 0                   | 0           | 0            |       | Z60.2             | 1197             | Optional_Date        |                         |                                  | 0                   | 0                        | 0          | 6/20/24 3:45    |
+|            |                           | 0                   | 0           | 0            |       | Z74.01            | 491              | Date_NotAdm          |                         |                                  | 0                   | 0                        | 0          | 6/27/24 15:30   |
+| 4          | 7861494260                |                     |             |              | CT    |                   |                  |                     |                         |                                  |                     |                          |            |                 |
+|            |                           |                     |             |              |       |                   |                  |                     |                         |                                  |                     |                          |            |                 |
+|            |                           | 5541                | 2505        | 257          |       | 80069             | 598              | Lab_Test_Date        | False                   | False                            | 7                   | 4                        | 47.4988078 | 12/18/24 0:00   |
+|            |                           | 0                   | 0           | 0            |       | 71250             | 313              | Imaging_Date         |                         |                                  | 0                   | 0                        | 0          | 12/24/24 5:27   |
+|            |                           | 0                   | 0           | 0            |       | 99214             | 1165             | Consult_Date         |                         |                                  | 0                   | 0                        | 0          | 1/14/25 9:06    |
+|            |                           | 0                   | 0           | 0            |       | Z74.01            | 409              | Optional_Date        |                         |                                  | 0                   | 0                        | 0          | 1/20/25 2:49    |
+|            |                           | 0                   | 0           | 0            |       | Z55.9             | 1190             | Date_NotAdm          |                         |                                  | 0                   | 0                        | 0          | 2/1/25 7:25     |
+
+
+*Defining custom formats for application to the medical codes and the average age variables;
+proc format;
+	value agegrp low -< 13='Dependent Child' 13  -< 20='Minor' 
+		20  -< 40='Young Adult Subscriber' 40  -< 65='Middle-Aged Subscriber' 
+		65  - high='Senior/Medicare Eligible' other='unknown';
+	value $procgrp '82803', '82805', '85025' , '80048', '80076', '80069', '87070', 
+		'87088', '87186', '82103'='Lab_Test_Visit' '71045', '71250', '74176', 
+		'71260'='Imaging_Service' '99214' , '99215', '99205'='Consult_Visit' 
+		other='Unknown';
+	value $procgrp '82803', '82805', '85025' , '80048', '80076', '80069', '87070', 
+		'87088', '87186', '82103'='Lab_Test_Visit' '71045', '71250', '74176', 
+		'71260'='Imaging_Service' '99214' , '99215', '99205'='Consult_Visit' 
+		other='Unknown';
+	value srbool 1 ='True' 
+			     0 ='False' ;
+run;
+
+*Removing non-required medical codes, and missing average age, and then applying the agegrp format for accurate reporting;
+
+data fraudref.prep_referral_analysis;
+.
+.
+.
+	if not missing(totaleligiblePerson);
+	format med_services_Type procgrp.;
+	drop trackingID medicalProviderIdentifier State  Is_Conducted_Spirometry charged_for_Rehab_Exclspirometry;
+run;
+
+proc sort data=fraudref.prep_referral_analysis out=sorted_by_provider;
+	by Provider_ID;
+run;
+
+proc sort data=fraudref.prep_referral_analysis out=sorted_for_age_analysis;
+	by Provider_ID;
+	where age_Mean=.;
+run;
+
+
+data copd_nonmissingage;
+.
+.
+by Provider_ID;
+run;
+
+/* The first 6 rows to demonstrate the outcome of data processing: missing and empty values were handled, reducing each logical unit to three entries per row. */
+
+| Provider_ID | Region | totaleligiblePerson | Older_Adult | NumberOfCOPD | med_services_Type | count_of_service | Service_Date_Detail | pulm_rehab_sessions | rescue_inhaler_rx_count | age_Mean   | service_date           | Is_Spirometry_Conducted | Is_RehabChargedWithoutSpirometry |
+|-------------|--------|----------------------|-------------|--------------|-------------------|------------------|---------------------|---------------------|-------------------------|------------|------------------------|-------------------------|----------------------------------|
+| 1000214673  | IN     | 5867                 | 1934        | 193          | Lab_Test_Visit    | 619              | Lab_Test_Date       | 13                  | 9                       | 54.97022266 | 28OCT2024:00:00:00    | 0                       | 1                                |
+| 1000214673  | IN     | 0                    | 0           | 0            | Imaging_Service   | 848              | Imaging_Date        | 0                   | 0                       | 0          | 30OCT2024:18:54:07    | 0                       | 0                                |
+| 1000214673  | IN     | 0                    | 0           | 0            | Consult_Visit     | 399              | Consult_Date        | 0                   | 0                       | 0          | 14NOV2024:22:33:34    | 0                       | 0                                |
+| 1005155880  | OR     | 5959                 | 2446        | 198          | Lab_Test_Visit    | 451              | Lab_Test_Date       | 33                  | 10                      | 57.62980868 | 07MAR2024:00:00:00    | 0                       | 0                                |
+| 1005155880  | OR     | 0                    | 0           | 0            | Imaging_Service   | 1189             | Imaging_Date        | 0                   | 0                       | 0          | 12MAR2024:20:37:57    | 0                       | 0                                |
+| 1005155880  | OR     | 0                    | 0           | 0            | Consult_Visit     | 431              | Consult_Date        | 0                   | 0                       | 0          | 04APR2024:21:00:33    | 0                       | 0                                |
+
+
+/* Restructuring the Service Date Detail and med services type variables to make data easier to summarize and visualize data */
+proc transpose data=sort_for_medndate_transpose 
+		out=med_service_pivoted(drop=_Name_);
+	by Provider_ID Region  ;
+	id med_services_Type;
+	var count_of_service;
+run;
+proc transpose data=sort_for_medndate_transpose 
+		out=Service_Date_Detail_pivoted(drop=_Name_);
+	by Provider_ID Region ;
+	id Service_Date_Detail;
+	var service_date;
+run;
+
+proc sql; 
+	create table max_counts as select Provider_ID, Region, max(totaleligiblePerson) as 
+		totaleligiblePerson, max(NumberOfCOPD) as NumberOfCOPD, max(Older_Adult) 
+		as Older_Adult, max(age_Mean) as age_Mean , max(Is_Spirometry_Conducted) as Is_Spirometry_Conducted,  
+		max(Is_RehabChargedWithoutSpirometry) as Is_RehabChargedWithoutSpirometry,
+		max(pulm_rehab_sessions) as pulm_rehab_sessions,  
+		max(rescue_inhaler_rx_count) as rescue_inhaler_rx_count
+ 		from 
+		sort_for_medndate_transpose group by Provider_ID, Region;		
+quit;
+
+
+data joined_all_data;
+ .
+ 	format Average_age agegrp.;
+run;
+
+*A subset of combined rows uon transposing data;
+| Provider_ID | Region | Lab_Test_Visit | Imaging_Service | Consult_Visit | Lab_Test_Date       | Imaging_Date       | Consult_Date       | totaleligiblePerson | NumberOfCOPD | Older_Adult | age_Mean                  | Is_Spirometry_Conducted | Is_RehabChargedWithoutSpirometry | pulm_rehab_sessions | rescue_inhaler_rx_count |
+|-------------|--------|----------------|-----------------|----------------|---------------------|--------------------|--------------------|---------------------|--------------|-------------|----------------------------|-------------------------|----------------------------------|---------------------|--------------------------|
+| 1000214673  | IN     | 619            | 848             | 399            | 28OCT2024:00:00:00 | 30OCT2024:18:54:07 | 14NOV2024:22:33:34 | 5867                | 193          | 1934        | Middle-Aged Subscriber     | 0                       | 1                                | 13                  | 9                        |
+| 1005155880  | OR     | 451            | 1189            | 431            | 07MAR2024:00:00:00 | 12MAR2024:20:37:57 | 04APR2024:21:00:33 | 5959                | 198          | 2446        | Middle-Aged Subscriber     | 0                       | 0                                | 33                  | 10                       |
+| 1028460299  | ME     | 436            | 872             | 348            | 08SEP2024:00:00:00 | 08SEP2024:16:58:15 | 11SEP2024:01:29:22 | 5618                | 240          | 1941        | Senior/Medicare Eligible   | 1                       | 0                                | 36                  | 2                        |
+| 1091382349  | AZ     | 300            | 290             | 904            | 21APR2024:00:00:00 | 24APR2024:13:34:52 | 04MAY2024:20:21:07 | 4622                | 198          | 2512        | Middle-Aged Subscriber     | 0                       | 1                                | 23                  | 9                        |
+| 1110273629  | TX     | 829            | 517             | 822            | 14OCT2024:00:00:00 | 03NOV2024:13:41:34 | 18NOV2024:09:28:15 | 5979                | 201          | 2065        | Young Adult Subscriber     | 0                       | 0                                | 0                   | 2                        |
+| 1131442042  | AZ     | 784            | 868             | 600            | 27JUL2024:00:00:00 | 31JUL2024:17:02:01 | 16AUG2024:22:53:19 | 5500                | 257          | 2346        | Middle-Aged Subscriber     | 1                       | 0                                | 23                  | 4                        |
+| 1209643321  | VT     | 884            | 325             | 819            | 24APR2024:00:00:00 | 27APR2024:11:05:25 | 05MAY2024:06:21:19 | 5235                | 202          | 1975        | Senior/Medicare Eligible   | 1                       | 1                                | 28                  | 7                        |
+| 1212712435  | CT     | 444            | 1051            | 614            | 12OCT2024:00:00:00 | 13OCT2024:18:55:21 | 10NOV2024:05:45:34 | 5872                | 195          | 2399        | Senior/Medicare Eligible   | 1                       | 0                                | 39                  | 7                        |
+| 1244462187  | CO     | 421            | 995             | 492            | 08MAY2024:00:00:00 | 13MAY2024:04:24:04 | 04JUN2024:15:55:35 | 5089                | 232          | 2114        | Senior/Medicare Eligible   | 1                       | 1                                | 28                  | 4                        |
+| 1261824809  | KS     | 268            | 871             | 320            | 22NOV2024:00:00:00 | 28NOV2024:05:06:35 | 06DEC2024:19:40:07 | 5167                | 264          | 2295        | Middle-Aged Subscriber     | 1                       | 0                                | 12                  | 10                       |
+
+
+
+/* Computing derived KPIs */
+data definedKPIone;
+set joined_all_data;
+SII = sum(Lab_Test_Visit, Imaging_Service, Consult_Visit)/ sum(totaleligiblePerson);
+COPD_Patient_Targeting_Index = NumberOfCOPD/totaleligiblePerson;
+Elderly_Patient_Targeting_Index = Older_Adult/totaleligiblePerson;
+run;
+
+proc SQL;
+    create table definedKPItwo as
+    select 
+    	 Provider_ID as  Provider_ID,
+        case when Is_RehabChargedWithoutSpirometry = 1 and Is_Spirometry_Conducted	= 0 
+                 then 	NumberOfCOPD else 0 end as erroneous_billing_cases,      
+        
+        case when  pulm_rehab_sessions  > 23 
+                 then NumberOfCOPD else 0 end as receiving_rehab,
+      calculated erroneous_billing_cases / NumberOfCOPD as kpi_rate_no_spirometry,
+       calculated receiving_rehab/ NumberOfCOPD as pulmonary_rehab_rate	 
+    from joined_all_data;    
+quit;
+
+
+proc means data=alldefinedKPIs sum maxdec=0;
+var COPD_Patient_Targeting_Index Elderly_Patient_Targeting_Index kpi_rate_no_spirometry pulmonary_rehab_rate;
+run;
+
+/* Output of derived KPIs */
+| Variable                      | Sum |
+|-------------------------------|-----|
+| SII                           | 196 |
+| COPD_Patient_Targeting_Index  | 20  |
+| Elderly_Patient_Targeting_Index | 198 |
+| kpi_rate_no_spirometry        | 41  |
+| pulmonary_rehab_rate          | 227 |
+
+
+/*Feature transformations and */
+/*Normalizing and  Rescaling  to a consistent range to ensure comparability across features, */ 
+
+data pre_scaling;
+	set alldefinedKPIs;
+	age_Mean=right(compress(age_Mean));
+	lab_util_rate=Lab_Test_Visit/totaleligiblePerson;
+	Imaging_util_rate=Imaging_Service/totaleligiblePerson;
+	Consults_util_rate=Consult_Visit/totaleligiblePerson;
+	Lab_to_Visit_days=(Consult_Date - Lab_Test_Date) /(3600 *24);
+	Elderly_case_ratio=Older_Adult/totaleligiblePerson;
+	Copd_case_ratio=NumberOfCOPD/totaleligiblePerson;
+		
+run;
+
+proc univariate data=pre_scaling noprint;
+	var lab_util_rate Imaging_util_rate Consults_util_rate Elderly_case_ratio 
+		Copd_case_ratio;
+	output out=minmax min=min_valone min_valtwo min_valthree min_valfour 
+		min_valfive max=max_valone max_valtwo max_valthree max_valfour max_valfive;
+run;
+
+data scaled_features_set_one;
+	set pre_scaling;
+	if _n_=1 then
+		set minmax;
+	scaled_var_lr=2 * ((lab_util_rate - min_valone) / (max_valone - min_valone)) 
+		- 1;
+	scaled_var_Ir=2 * ((Imaging_util_rate - min_valtwo) / 
+		(max_valtwo - min_valtwo)) - 1;
+	scaled_var_Cr=2 * ((Consults_util_rate - min_valthree) / 
+		(max_valthree - min_valthree)) - 1;
+	referral_count_score=sum(scaled_var_lr, scaled_var_Ir, scaled_var_Cr)/3;
+	scaled_var_Br=2 * ((Elderly_case_ratio - min_valfour) / 
+		(max_valfour - min_valfour)) - 1;
+	scaled_var_Crate=2 * ((copd_case_ratio - min_valfive) / 
+		(max_valfive - min_valfive)) - 1;
+	patients_risk_scored =sum(scaled_var_Br , scaled_var_Crate)/2;
+	keep patients_risk_scored referral_count_score Provider_Id;
+
+run;
+
+proc univariate data=pre_scaling noprint;
+	var Lab_to_Visit_days;
+	output out=stats median=med q1=q1 q3=q3;
+run;
+
+data scaled_features_set_two;
+	set pre_scaling;
+	if _n_=1 then
+		set stats;
+	iqr=q3 - q1;
+	if iqr > 0 then
+		diagnostic_to_specialist_score = (Lab_to_Visit_days - med) / iqr;
+	else
+		diagnostic_to_specialist_score = 0;
+	keep diagnostic_to_specialist_score Provider_Id;
+run;
+
+/*Subset of the Final dataset */ 
+| Obs | Provider_ID | patients_risk_scored | referral_count_score | diagnostic_to_specialist_score | SII    | Region | erroneous_billing_cases | receiving_rehab | kpi_rate_no_spirometry | pulmonary_rehab_rate | Lab_to_Visit_days |
+|-----|-------------|--------------------|--------------------|-------------------------------|--------|--------|------------------------|-----------------|-----------------------|--------------------|-----------------|
+| 1   | 1000214673  | -0.74793           | -0.41826           | 0.02176                       | 0.31805 | IN     | 193                    | 0               | 1                     | 0                  | 17.9400         |
+| 2   | 1005155880  | -0.43261           | -0.32915           | 0.75913                       | 0.34754 | OR     | 0                      | 198             | 0                     | 1                  | 28.8754         |
+| 3   | 1028460299  | -0.36620           | -0.48931           | -0.98144                      | 0.29477 | ME     | 0                      | 240             | 0                     | 1                  | 3.0621          |
+| 4   | 1091382349  | 0.38344            | -0.40171           | -0.25415                      | 0.32324 | AZ     | 198                    | 0               | 1                     | 0                  | 13.8480         |
+| 5   | 1110273629  | -0.66500           | -0.28197           | 1.19872                       | 0.36260 | TX     | 0                      | 0               | 0                     | 0                  | 35.3946         |
+| 6   | 1131442042  | 0.07043            | -0.14011           | 0.22498                       | 0.40945 | AZ     | 0                      | 0               | 0                     | 0                  | 20.9537         |
+| 7   | 1209643321  | -0.38201           | -0.20619           | -0.42834                      | 0.38739 | VT     | 0                      | 202             | 0                     | 1                  | 11.2648         |
+| 8   | 1212712435  | -0.44047           | -0.29357           | 0.78371                       | 0.35916 | CT     | 0                      | 195             | 0                     | 1                  | 29.2400         |
+| 9   | 1244462187  | -0.00885           | -0.24574           | 0.67742                       | 0.37493 | CO     | 0                      | 232             | 0                     | 1                  | 27.6636         |
+| 10  | 1261824809  | 0.27991            | -0.52725           | -0.18864                      | 0.28237 | KS     | 0                      | 0               | 0                     | 0                  | 14.8195         |
 
 
 
 
 
-| trackingID | medicalProviderIdentifier | totaleligiblePerson | Older_Adult | NumberOfCOPD | State | med_services_Type | count_of_service | Service_Date_Detail | Is_Conducted_Spirometry | charged_for_Rehab_Exclspirometry | pulm_rehab_sessions | rescue_inhaler_rx_count | age_Mean     | service_date     |
-|------------|---------------------------|---------------------|-------------|--------------|-------|-------------------|------------------|---------------------|-------------------------|----------------------------------|---------------------|--------------------------|--------------|-----------------|
-| 2          | 9269216714                |                     |             |              | VA    |                   |                  |                     |                         |                                  |                     |                          |              |                 |
-|            |                           | 4536                | 2087        | 216          |       | 87088             | 1105             | Lab_Test_Date        | False                   | False                            | 23                  | 3                        | 71.15566775  | 5/30/24 0:00    |
-|            |                           | 0                   | 0           | 0            |       | 71045             | 436              | Imaging_Date         |                         |                                  | 0                   | 0                        | 0            | 5/30/24 12:28   |
-|            |                           | 0                   | 0           | 0            |       | 99214             | 547              | Consult_Date         |                         |                                  | 0                   | 0                        | 0            | 6/14/24 23:57   |
-|            |                           | 0                   | 0           | 0            |       | Z60.2             | 1197             | Optional_Date        |                         |                                  | 0                   | 0                        | 0            | 6/20/24 3:45    |
-|            |                           | 0                   | 0           | 0            |       | Z74.01            | 491              | Date_NotAdm          |                         |                                  | 0                   | 0                        | 0            | 6/27/24 15:30   |
-| 4          | 7861494260                |                     |             |              | CT    |                   |                  |                     |                         |                                  |                     |                          |              |                 |
-|            |                           | 5541                | 2505        | 257          |       | 80069             | 598              | Lab_Test_Date        | False                   | False                            | 7                   | 4                        | 47.49880781  | 12/18/24 0:00   |
-|            |                           | 0                   | 0           | 0            |       | 71250             | 313              | Imaging_Date         |                         |                                  | 0                   | 0                        | 0            | 12/24/24 5:27   |
-|            |                           | 0                   | 0           | 0            |       | 99214             | 1165             | Consult_Date         |                         |                                  | 0                   | 0                        | 0            | 1/14/25 9:06    |
-|            |                           | 0                   | 0           | 0            |       | Z74.01            | 409              | Optional_Date        |                         |                                  | 0                   | 0                        | 0            | 1/20/25 2:49    |
-|            |                           | 0                   | 0           | 0            |       | Z55.9             | 1190             | Date_NotAdm          |                         |                                  | 0                   | 0                        | 0            | 2/1/25 7:25     |
+
+
+
+
+
+
+
