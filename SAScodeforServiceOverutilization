@@ -1,3 +1,4 @@
+ Codes 
 * Accessing data;
 %let path = /home/u64095876/copd_data/input;
 libname fraudref "&path";
