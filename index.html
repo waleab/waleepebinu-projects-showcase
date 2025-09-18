@@ -497,6 +497,25 @@
             opacity: 0.4;
             pointer-events: none;
         }
+         .project-tableau { 
+            background: linear-gradient(135deg, #0074D9 0%, #001f3f 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            text-align: center;
+            font-family: 'Inter', sans-serif;
+            position: relative;
+        }
+
+        .project-tableau::before {
+            content: 'Interactive\000A Tableau\000A Dashboard';
+            white-space: pre-line;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            line-height: 1.4;
+        }
         /* Project Detail Page */
         .project-detail {
             padding: 40px 50px 80px;
@@ -534,6 +553,65 @@
     margin-left: auto;
     margin-right: auto;
 }
+     /* Tableau Dashboard Specific Styles - Desktop Only */
+        .tableau-container {
+            max-width: 95vw;
+            margin: 20px auto;
+            border-radius: 15px;
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.15);
+            background: white;
+            padding: 30px;
+            overflow: auto;
+        }
+
+        /* Special full-width container for dashboard */
+        .dashboard-full-width {
+            width: 100vw;
+            position: relative;
+            left: 50%;
+            right: 50%;
+            margin-left: -50vw;
+            margin-right: -50vw;
+            background: white;
+            padding: 40px 20px;
+        }
+
+        /* Fixed desktop dimensions for Tableau - Proportionally scaled down */
+        #vizContainer {
+            width: 1440px !important;
+            height: 720px !important;
+            margin: 0 auto !important;
+        }
+
+        /* Ensure Tableau container doesn't break */
+        .tableauPlaceholder {
+            max-width: 100%;
+            overflow: auto;
+            margin: 0 auto;
+        }
+
+        /* Back to Home Button */
+        .back-btn {
+            position: fixed;
+            top: 120px;
+            left: 50px;
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            padding: 12px 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #333;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            z-index: 50;
+        }
+
+        .back-btn:hover {
+            transform: translateX(-5px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+        }
 
         .project-image-container {
             position: relative;
@@ -1274,6 +1352,47 @@ The finalized view of the Service Overurilization and Risk dashboard is shown be
         </div>
         
     </div>
+        <!-- Embedded Tableau Dashboard within Project One -->
+            <div class="project-images">
+                <div class="dashboard-full-width">
+                    <div class="tableau-container">
+                        <h3 style="text-align: center; margin-bottom: 30px; color: #333; font-family: 'Playfair Display', serif; font-size: 2rem;">Interactive Dashboard</h3>
+                        
+                        <div class="dashboard-container">
+                            <div class="tableauPlaceholder" id="vizContainer" style="position: relative; width: 1440px; height: 720px; margin: 0 auto;">
+                                <noscript>
+                                    <a href="https://public.tableau.com/views/Book93_17568776704860/Dashboard1">
+                                        <img alt="Dashboard" src="https://public.tableau.com/static/images/Bo/Book93_17568776704860/Dashboard1/1.png" style="border: none" />
+                                    </a>
+                                </noscript>
+                                <object class="tableauViz" style="display: none;">
+                                    <param name="host_url" value="https%3A%2F%2Fpublic.tableau.com%2F" />
+                                    <param name="embed_code_version" value="3" />
+                                    <param name="site_root" value="" />
+                                    <param name="name" value="Book93_17568776704860/Dashboard1" />
+                                    <param name="tabs" value="no" />
+                                    <param name="toolbar" value="yes" />
+                                    <param name="language" value="en-US" />
+                                </object>
+                            </div>
+                        </div>
+
+                        <!-- Fallback link in case dashboard doesn't load -->
+                        <div id="tableau-fallback" style="text-align: center; padding: 20px; margin-top: 20px;">
+                            <p style="margin-bottom: 15px; color: #666;">If the dashboard doesn't display above, you can view it directly:</p>
+                            <a href="https://public.tableau.com/views/Book93_17568776704860/Dashboard1" 
+                               target="_blank" 
+                               class="download-button" 
+                               style="display: inline-block; text-decoration: none;">
+                                View Dashboard on Tableau Public
+                            </a>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
             <div class="footer">
             <div class="footer-content">
                 <div class="footer-left">
@@ -1492,8 +1611,28 @@ The finalized view of the Service Overurilization and Risk dashboard is shown be
             
             // Scroll to top
             window.scrollTo(0, 0);
+        if (pageId === 'project-one') {
+                setTimeout(initializeTableau, 500);
+            }
         }
 
+    // Initialize Tableau Dashboard - Desktop Only
+        function initializeTableau() {
+            var divElement = document.getElementById('vizContainer');
+            if (divElement) {
+                var vizElement = divElement.getElementsByTagName('object')[0];
+                if (vizElement) {
+                    // Proportionally scaled dimensions - like Paint's resize function
+                    vizElement.style.width = '1440px';
+                    vizElement.style.height = '720px';
+                    
+                    // Load Tableau script
+                    var scriptElement = document.createElement('script');
+                    scriptElement.src = 'https://public.tableau.com/javascripts/api/viz_v1.js';
+                    vizElement.parentNode.insertBefore(scriptElement, vizElement);
+                }
+            }
+        }
         // Update navigation dots based on current page
         function updateNavDots(currentPage) {
             const projectPages = ['project-one', 'project-two', 'project-three', 'project-four', 'project-five'];
