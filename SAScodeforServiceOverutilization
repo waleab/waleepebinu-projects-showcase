@@ -1,6 +1,6 @@
  Codes 
 * Accessing data;
-%let path = /home/u64095876/copd_data/input;
+%let path = /home/u6409xxxx/copd_data/input;
 libname fraudref "&path";
 options validvarname=v7;
 proc import datafile="&path/medicalProviderandReferraldata.csv"
@@ -49,7 +49,7 @@ run;
 
 *Removing non-required medical codes, and missing average age, and then applying the agegrp format for accurate reporting;
 
-data fraudref.prep_referral_analysis;
+data ProviderReferralBehavior; 
 .
 .
 .
@@ -58,11 +58,11 @@ data fraudref.prep_referral_analysis;
 	drop trackingID medicalProviderIdentifier State  Is_Conducted_Spirometry charged_for_Rehab_Exclspirometry;
 run;
 
-proc sort data=fraudref.prep_referral_analysis out=sorted_by_provider;
+proc sort data=ProviderReferralBehavior out=sorted_by_provider;
 	by Provider_ID;
 run;
 
-proc sort data=fraudref.prep_referral_analysis out=sorted_for_age_analysis;
+proc sort data=ProviderReferralBehavior out=sorted_for_age_analysis;
 	by Provider_ID;
 	where age_Mean=.;
 run;
